@@ -7,7 +7,7 @@ import cmath
 import math
 import scipy
 import random
-
+#TODO implement different method of obtaining feature vectors
 #initialize globals
 hop_length = 1024
 n_fft = 2048
@@ -101,9 +101,12 @@ hop_length = 1024
 window_size = 2048
 music,sr = load_music("./call_me_maybe.mp3")
 feature_vectors = feature_vectors(music,hop_length,window_size)
-sim_mat = sim_matrix(feature_vectors,sr,hop_length,display=True)
+sim_mat = sim_matrix(feature_vectors,sr,hop_length,display=False)
 novelty_curve = novelty_curve(sim_mat,256)
-plt.figure()
-plt.imshow(sim_mat)
+
+plt.figure(0)
 plt.plot(novelty_curve)
+
+plt.figure(1)
+plt.imshow(sim_mat)
 plt.show()
