@@ -1,7 +1,7 @@
 var song = '../audio/03 All My Loving copy.m4a';
 // first element must be zero, last element must be end time of song
-var startTimes = [0, 25, 49.5, 61.5, 74.5, 99, 129.5];
-var sections = [0, 0, 1, 2, 0, 1];
+var startTimes = [0, 25, 49.5, 61.5, 74.5, 99, 112.5, 129.5];
+var sections = [0, 0, 1, 2, 0, 1, 3];
 var numSections = 3;
 
 // create gradient for canvas
@@ -14,8 +14,8 @@ linGrad.addColorStop(0.5, 'rgba(183, 183, 183, 1.000)');
 var wavesurfer = WaveSurfer.create({
     container: '#waveform',
     waveColor: linGrad,
-    progressColor: 'rgba(64,64,64,1)',//'rgba(2, 56, 88, 1.000)', //
-    barWidth: 3
+    progressColor: 'rgba(64,64,64,1.000)',//'rgba(2, 56, 88, 1.000)', //
+    barWidth: 5
 });
 wavesurfer.load(song);
 
@@ -27,7 +27,7 @@ for (i = 0; i < numSections; i++) {
 }
 */
 //hues = ['#8dd3c7', '#bebada', '#fb8072', '#80b1d3', '#fdb462', ,'#ffffb3'];
-hues = ['rgba(4,90,141,0.7)', 'rgba(116,169,207,0.7)', 'rgba(2,56,88,.7)', 'rgba(54,144,192,0.7)', 'rgba(116,169,207,0.7)', 'rgba(166,189,219,0.7)', 'rgba(5,112,176,0.7)'];
+hues = ['rgba(4,90,141,0.7)', 'rgba(116,169,207,0.7)', 'rgba(2,56,88,.7)', 'rgba(166,189,219,0.7)', 'rgba(5,112,176,0.7)'];
 function addRegions() {
 	wavesurfer.clearRegions();
 	for (i = 0; i < startTimes.length - 1; i++) {
@@ -81,7 +81,8 @@ document.getElementById('skip').addEventListener('click', function(){
 document.getElementById('back').addEventListener('click', function(){
 	var currTime = wavesurfer.getCurrentTime();
 	for (i = 0; i < startTimes.length; i++) {
-		if (startTimes[i] >= currTime) {
+		// 1 second margin allows skipping backwards while playing
+		if (startTimes[i] >= currTime - 1) { 
 			wavesurfer.skip(startTimes[i-1] - currTime);
 			break;
 		}
