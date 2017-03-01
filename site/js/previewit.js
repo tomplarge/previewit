@@ -14,23 +14,28 @@ linGrad.addColorStop(0.5, 'rgba(183, 183, 183, 1.000)');
 var wavesurfer = WaveSurfer.create({
     container: '#waveform',
     waveColor: linGrad,
-    progressColor: 'rgba(100, 100, 100, 1.000)',
+    progressColor: 'rgba(64,64,64,1)',//'rgba(2, 56, 88, 1.000)', //
     barWidth: 3
 });
 wavesurfer.load(song);
 
 // add colored region for each section
+/*
 var hues = [];
 for (i = 0; i < numSections; i++) {
-	hues.push(i*360/numSections); // hue is out of 360
+	hues.push(i*360/numSections + 78); // hue is out of 360
 }
+*/
+//hues = ['#8dd3c7', '#bebada', '#fb8072', '#80b1d3', '#fdb462', ,'#ffffb3'];
+hues = ['rgba(4,90,141,0.7)', 'rgba(116,169,207,0.7)', 'rgba(2,56,88,.7)', 'rgba(54,144,192,0.7)', 'rgba(116,169,207,0.7)', 'rgba(166,189,219,0.7)', 'rgba(5,112,176,0.7)'];
 function addRegions() {
 	wavesurfer.clearRegions();
 	for (i = 0; i < startTimes.length - 1; i++) {
 		wavesurfer.addRegion({
     		start: startTimes[i],
     		end: startTimes[i+1],
-    		color: 'hsla(' + hues[sections[i]] + ', 80%, 30%, .4)',
+    		//color: 'hsla(' + hues[sections[i]] + ', 80%, 30%, .4)',
+    		color: hues[sections[i]],
     		drag: false,
     		resize: false
   		});
