@@ -1,5 +1,8 @@
 var song = '../audio/03 All My Loving copy.m4a';
-var startTimes = [0, 25, 49.5, 74.5, 99, 126]; // last element must be end time of song
+// first element must be zero, last element must be end time of song
+var startTimes = [0, 25, 49.5, 61.5, 74.5, 99, 129.5];
+var sections = [0, 0, 1, 2, 0, 1];
+var numSections = 3;
 
 // create gradient for canvas
 var ctx = document.createElement('canvas').getContext('2d');
@@ -17,17 +20,20 @@ var wavesurfer = WaveSurfer.create({
 wavesurfer.load(song);
 
 // add colored region for each section
+var hues = [];
+for (i = 0; i < numSections; i++) {
+	hues.push(i*360/numSections); // hue is out of 360
+}
 function addRegions() {
-	var hue = 0;
+	wavesurfer.clearRegions();
 	for (i = 0; i < startTimes.length - 1; i++) {
 		wavesurfer.addRegion({
     		start: startTimes[i],
     		end: startTimes[i+1],
-    		color: 'hsla(' + hue + ', 80%, 30%, .4)',
+    		color: 'hsla(' + hues[sections[i]] + ', 80%, 30%, .4)',
     		drag: false,
     		resize: false
   		});
-  		hue = (hue + 60) % 360
 	}
 
 	var regions = document.getElementsByClassName('wavesurfer-region');
@@ -37,26 +43,64 @@ function addRegions() {
 }
 
 wavesurfer.on('ready', function () {
-    wavesurfer.play(); //autoplay
+    wavesurfer.play(); //autoplay 
     addRegions();
 });
 
 // button listeners
-document.getElementById('play').addEventListener('click', function(){
-    wavesurfer.play();
-});
-
-document.getElementById('pause').addEventListener('click', function(){
-    wavesurfer.pause();
+var playState = true;
+document.getElementById('play-pause').addEventListener('click', function(){
+	if (playState) {
+		wavesurfer.pause()
+		document.getElementById('play-pause').innerHTML = '<i class="material-icons">play_arrow</i>';
+		playState = false;
+	}
+	else {
+		wavesurfer.play();
+		document.getElementById('play-pause').innerHTML = '<i class="material-icons">pause</i>';
+		playState = true;
+	}
+    
 });
 
 document.getElementById('skip').addEventListener('click', function(){
 	var currTime = wavesurfer.getCurrentTime();
 	for (i = 0; i < startTimes.length; i++) {
 		if (startTimes[i] > currTime) {
-			wavesurfer.play(startTimes[i]);
+			wavesurfer.skip(startTimes[i] - currTime);
 			break;
 		}
 	}
 });
+
+document.getElementById('back').addEventListener('click', function(){
+	var currTime = wavesurfer.getCurrentTime();
+	for (i = 0; i < startTimes.length; i++) {
+		if (startTimes[i] >= currTime) {
+			wavesurfer.skip(startTimes[i-1] - currTime);
+			break;
+		}
+	}
+});
+
+// alignment and resizing
+function alignTrackList() {
+	var $container = $('div.album-info');
+	var $top = $('div.center-align');
+	var $bot = $('div.left-align');
+	var containerHeight = $container.height();
+	var topHeight = $top.height();
+	$bot.css('height', + (containerHeight-topHeight) + "px");
+}
+
+alignTrackList();
+$(window).resize(function(){
+	wavesurfer.empty();
+	wavesurfer.drawBuffer();
+	addRegions();
+	playState = false; // resizing pauses player
+	document.getElementById('play-pause').innerHTML = '<i class="material-icons">play_arrow</i>';
+	alignTrackList();
+});
+
 
