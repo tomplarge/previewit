@@ -1,0 +1,102 @@
+html {
+	height: 100%;
+}
+
+body {
+/*background: #646464; */
+	height:100%;
+	font-family: 'Raleway', sans-serif;
+}
+
+.waveform {
+	max-width: 100%;
+}
+
+.wavesurfer-region {
+	border-right: 1px solid white;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.wavesurfer-region:last-child {
+	border-radius: 0px 2px 0px 0px;
+	border-right: 0px solid white;
+}
+
+/* first colored region is third child of its parent */
+.wavesurfer-region:nth-child(3) {
+	border-radius: 2px 0px 0px 0px;
+}
+
+.col {
+	padding: 0px;
+}
+
+.container {
+	height: 100%;
+}
+
+.album-container {
+	background-image: url(../img/beatles.jpg);
+	background-repeat: no-repeat;
+	background-size: cover;
+  	background-position: center;
+  	height: 80%;
+}
+
+.center-align {
+	height: 130px;
+
+}
+
+.left-align {
+	height: 80%;
+}
+
+.current-title, .current-artist {
+	margin: 0px;
+	color: rgba(64,64,64,1);
+}
+
+.current-artist {
+	margin-bottom: 10px;
+}
+
+.album-info{
+	background: rgba(255,255,255,0.6);
+	height: 100%;
+}
+.album-container {
+	border-radius: 0px 0px 2px 2px;
+}
+
+.btn {
+	background-color: rgba(64,64,64,1);
+}
+
+.btn:hover {
+	background-color: rgba(97,97,97,1);
+}
+
+.title, .artist{
+	color: rgba(64,64,64,1);
+}
+.artist {
+	font-size: 80%;
+}
+
+.collection {
+	height: 100%;
+	margin: 0px;
+	overflow: scroll;
+}
+
+.collection .collection-item {
+	background-color: rgba(255,255,255,0);
+	overflow: scroll;
+}
+
+
+.collection .collection-item.active, .collection a.collection-item:not(.active):hover{
+	/*background-color: rgba(64,64,64,0.6); */
+	background-color: rgba(255,255,255,0.6);
+}
