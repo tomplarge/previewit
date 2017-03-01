@@ -2,11 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 #import matplotlib
 import sklearn
-from librosa import load,stft,logamplitude
+import librosa
 import cmath
 import math
 import scipy
 import random
+import peakdetect
 #TODO implement different method of obtaining feature vectors
 #initialize globals
 hop_length = 1024
@@ -17,7 +18,7 @@ def load_music(path):
     Returns: loaded music and sample rate given a string of a path to the audio file
     path: string
     """
-    music, sr = load(path)
+    music, sr = librosa.load(path)
     return music,sr
 
 def feature_vectors(music,hop_length,window_size):
@@ -27,8 +28,8 @@ def feature_vectors(music,hop_length,window_size):
     hop_length: int
     window_size: int
     """
-    _stft = stft(music, hop_length = hop_length, n_fft = n_fft)
-    log_spectrogram = logamplitude(np.abs(_stft**2), ref_power=np.max)
+    _stft = librosa.stft(music, hop_length = hop_length, n_fft = n_fft)
+    log_spectrogram = librosa.logamplitude(np.abs(_stft**2), ref_power=np.max)
     return log_spectrogram
 
 def sim_matrix(feature_vectors, sample_rate, hop_length, distance_metric = 'cosine',display=True):
@@ -97,16 +98,98 @@ def novelty_curve(sim_mat,ker_size):
     novelty_curve = novelty_curve/novelty_curve.max()
     return novelty_curve
 
+def pick_peaks(nc, L=128):
+    """Obtain peaks from a novelty curve using an adaptive threshold."""
+    std = np.std(nc)
+    peaks = []
+    for i in xrange(1, nc.shape[0] - 1):
+        # is it a peak?
+        if nc[i - 1] < nc[i] and nc[i] > nc[i + 1]:
+            # is it above the threshold?
+            if nc[i] > std:
+                peaks.append(i)
+    return peaks
+
+def smooth(x,window_len=11,window='hanning'):
+    """smooth the data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+
+    output:
+        the smoothed signal
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+
+    see also:
+
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError, "smooth only accepts 1 dimension arrays."
+
+    if x.size < window_len:
+        raise ValueError, "Input vector needs to be bigger than window size."
+
+
+    if window_len<3:
+        return x
+
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+
+
+    s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+    #print(len(s))
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
+    else:
+        w=eval('np.'+window+'(window_len)')
+
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    return y
+
 hop_length = 1024
 window_size = 2048
 music,sr = load_music("./call_me_maybe.mp3")
 feature_vectors = feature_vectors(music,hop_length,window_size)
 sim_mat = sim_matrix(feature_vectors,sr,hop_length,display=False)
 novelty_curve = novelty_curve(sim_mat,256)
+novelty_curve = novelty_curve[100:4050] #the end is wonky
+novelty_curve_smooth = smooth(novelty_curve,window_len = 64)
+deriv = np.zeros(novelty_curve_smooth.size)
+for i in range(1,novelty_curve_smooth.size - 1):
+    deriv[i-1] = (novelty_curve_smooth[i] - novelty_curve_smooth[i-1])
+deriv = 10*deriv
 
-plt.figure(0)
-plt.plot(novelty_curve)
+peaks= pick_peaks(novelty_curve_smooth)
 
+deriv_pts = [deriv[i] for i in peaks]
+print deriv_pts
 plt.figure(1)
+plt.plot(novelty_curve_smooth,color='g')
+plt.plot(deriv,color='blue')
+for p in peaks:
+    plt.axvline(x=p,color='r')
+
+plt.figure(2)
 plt.imshow(sim_mat)
 plt.show()
