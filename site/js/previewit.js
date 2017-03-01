@@ -23,7 +23,7 @@ wavesurfer.load(song);
 /*
 var hues = [];
 for (i = 0; i < numSections; i++) {
-	hues.push(i*360/numSections + 78); // hue is out of 360
+	hues.push(i*360/numSections); // hue is out of 360
 }
 */
 //hues = ['#8dd3c7', '#bebada', '#fb8072', '#80b1d3', '#fdb462', ,'#ffffb3'];
