@@ -8,6 +8,7 @@ import math
 import scipy
 import random
 import peakdetect
+import time
 #TODO implement different method of obtaining feature vectors
 
 
@@ -26,7 +27,7 @@ def feature_vectors(music,sample_rate,hop_length,window_size,method = 'stft'):
     sample_rate: sample rate
     hop_length: int
     window_size: int
-    method: string, method for computing feature vectors Default to stft. ('stft','mfcc','cqt')
+    method: string, method for computing feature vectors Default to stft. ('stft','mfcc','cqt','tempogram')
     """
     if method == 'stft':
         #feature_vectors = librosa.feature.chroma_stft(y=music,sr=sample_rate)
@@ -38,10 +39,12 @@ def feature_vectors(music,sample_rate,hop_length,window_size,method = 'stft'):
 
     elif method == 'mfcc':
         feature_vectors = librosa.feature.mfcc(y=music, sr=sample_rate)
+    elif method == 'tempogram':
+        feature_vectors = librosa.feature.tempogram(y=music,sr=sample_rate)
 
     return feature_vectors
 
-def sim_matrix(feature_vectors, sample_rate, hop_length, distance_metric = 'seuclidean',display=True):
+def sim_matrix(feature_vectors, sample_rate, hop_length, distance_metric = 'euclidean',display=True):
     """
         Input:
             feature_vectors - a numpy ndarray MxN, where M is the number of features in each vector and
@@ -195,22 +198,43 @@ def segment_cluster(sim_mat,bounds):
 ##LOAD MUSIC, GET FEATURES, SIM MATRIX
 hop_length = 512
 window_size = 2048
-ker_size = 440
+ker_size = 400
 smoothing_window = 128
+start = time.time()
 music,sr = load_music("./All_My_Friends.mp3")
-feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'stft')
-sim_mat = sim_matrix(feature_vectors,sr,hop_length,display=False)
+end=time.time()
+print "Loading took %d seconds" % (end-start)
 
+start = time.time()
+feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'tempogram')
+end = time.time()
+
+print "feature_vectors took %d seconds" % (end-start)
+
+start = time.time()
+sim_mat = sim_matrix(feature_vectors,sr,hop_length,distance_metric = 'euclidean',display=False)
+end=time.time()
+
+print "sim_mat took %d seconds" % (end-start)
 #GET NOVELTY CURVE OF SIMILARITY MATRIX
-novelty_curve = compute_novelty_curve(sim_mat,ker_size)
-#novelty_curve = novelty_curve[100:8000] #the end is wonky
-novelty_curve_smooth = smooth(novelty_curve,window_len = smoothing_window)
 
+start = time.time()
+novelty_curve = compute_novelty_curve(sim_mat,ker_size)
+end=time.time()
+
+print "novelty took %d seconds" % (end-start)
+#novelty_curve = novelty_curve[100:8000] #the end is wonky
+
+start=time.time()
+novelty_curve_smooth = smooth(novelty_curve,window_len = smoothing_window)
+end=time.time()
+
+print "smoothing took %d seconds" % (end-start)
 #RECURRENCE MATRIX
-recurr = librosa.segment.recurrence_matrix(feature_vectors,mode='affinity')
-novelty_curve_recurr = compute_novelty_curve(recurr,ker_size/2)
+#recurr = librosa.segment.recurrence_matrix(feature_vectors,mode='affinity')
+#novelty_curve_recurr = compute_novelty_curve(recurr,ker_size/2)
 #novelty_curve_recurr = novelty_curve_recurr[100:8000] #the end is wonky
-novelty_curve_recurr_smooth = smooth(novelty_curve_recurr,window_len = smoothing_window)
+#novelty_curve_recurr_smooth = smooth(novelty_curve_recurr,window_len = smoothing_window)
 
 
 #CALCULATE DERIVATIVE
@@ -221,7 +245,11 @@ novelty_curve_recurr_smooth = smooth(novelty_curve_recurr,window_len = smoothing
 # deriv = magnify*deriv
 
 #PICK PEAKS
+start = time.time()
 peaks= pick_peaks(novelty_curve_smooth)
+end = time.time()
+
+print "peak picking took %d seconds" % (end-start)
 # peaks_recurr = pick_peaks(novelty_curve_recurr_smooth)
 
 #PRINT DERIVATIVE VALUES
@@ -231,6 +259,7 @@ peaks= pick_peaks(novelty_curve_smooth)
 
 
 #PLOTTING
+start = time.time()
 skip = feature_vectors.shape[-1] / 10
 plt.figure(1)
 plt.title('STFT')
@@ -246,17 +275,23 @@ plt.figure(2)
 plt.title('STFT')
 plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
 plt.imshow(sim_mat)
+end = time.time()
 
-plt.figure(3)
-plt.title('RECURR')
-plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
-plt.imshow(recurr)
-
-plt.figure(4)
-plt.title('RECURR')
-plt.plot(novelty_curve_recurr,color='g')
-plt.plot(novelty_curve_recurr_smooth,color='r')
-plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+print "plotting took %d seconds" % (end-start)
+start = time.time()
+# plt.figure(3)
+# plt.title('RECURR')
+# plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+# plt.imshow(recurr)
+#
+# plt.figure(4)
+# plt.title('RECURR')
+# plt.plot(novelty_curve_recurr,color='g')
+# plt.plot(novelty_curve_recurr_smooth,color='r')
+# plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
 # for p in peaks_recurr:
 #     plt.axvline(x=p,color='r')
 plt.show()
+end = time.time()
+
+print "showing took %d seconds" % (end-start)
