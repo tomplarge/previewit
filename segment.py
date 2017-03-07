@@ -20,7 +20,7 @@ def load_music(path):
     music, sr = librosa.load(path)
     return music,sr
 
-def feature_vectors(music,sample_rate,hop_length,window_size,method = 'stft'):
+def feature_vectors(music,sample_rate,hop_length,window_size,method = 'stft',beat_sync = True):
     """
     Returns: feature vectors for audio sample music from the log spectrogram of the music
     music: 1-D numpy array
@@ -36,12 +36,12 @@ def feature_vectors(music,sample_rate,hop_length,window_size,method = 'stft'):
         feature_vectors = librosa.logamplitude(np.abs(_stft**2), ref_power=np.max)
     elif method == 'cqt':
         feature_vectors = librosa.feature.chroma_cqt(y=music,sr=sample_rate)
-
     elif method == 'mfcc':
         feature_vectors = librosa.feature.mfcc(y=music, sr=sample_rate)
     elif method == 'tempogram':
         feature_vectors = librosa.feature.tempogram(y=music,sr=sample_rate)
-
+    if beat_sync:
+        feature_vectors = beat_sync_features(music,sample_rate,hop_length,feature_vectors,aggregator = np.median)
     return feature_vectors
 
 def sim_matrix(feature_vectors, sample_rate, hop_length, distance_metric = 'euclidean',display=True):
@@ -112,15 +112,43 @@ def compute_novelty_curve(sim_mat,ker_size):
 
 def pick_peaks(nc,):
     """Obtain peaks from a novelty curve using an adaptive threshold."""
-    std = np.std(nc)/2
+    #th = np.mean(nc)/2
+    offset = nc.mean() / 3
+    th = scipy.ndimage.filters.median_filter(nc, size=32) + offset
     peaks = []
     for i in xrange(1, nc.shape[0] - 1):
         # is it a peak?
         if nc[i - 1] < nc[i] and nc[i] > nc[i + 1]:
             # is it above the threshold?
-            if nc[i] > std:
+            if nc[i] > th[i]:
                 peaks.append(i)
-    return peaks
+    return peaks,th
+
+def beat_sync_features(music,sample_rate,hop_length,feature_vectors,aggregator = np.median):
+    """
+        input:
+            feature_vectors: a numpy ndarray MxN, where M is the number of features in each vector and
+            N is the length of the sequence.
+            beats: frames given by the beat tracker
+            aggregator: how to summarize all the frames within a beat (e.g. np.median, np.mean). Defaults to np.median.
+            display: if True, displays the beat synchronous features.
+        output:
+            beat_synced_features: a numpy ndarray MxB, where M is the number of features in each vector
+            and B is the number of beats. Each column of this matrix represents a beat synchronous feature
+            vector.
+    """
+    tempo,beats = librosa.beat.beat_track(y=music, sr=sr, hop_length=hop_length)
+    bsf = np.zeros((feature_vectors.shape[0],beats.size))
+    for b in range(beats.size):
+        if b ==0:
+            temp = feature_vectors[:,0:beats[0]]
+        elif b==beats.size-1:
+            temp = feature_vectors[:,beats[b]:]
+        else:
+            temp = feature_vectors[:,beats[b-1]:beats[b]]
+        for i in range(temp.shape[0]):
+            bsf[i,b] = aggregator(temp[i,:])
+    return bsf
 
 def smooth(x,window_len=11,window='hanning'):
     """smooth the data using a window with requested size.
@@ -198,21 +226,22 @@ def segment_cluster(sim_mat,bounds):
 ##LOAD MUSIC, GET FEATURES, SIM MATRIX
 hop_length = 512
 window_size = 2048
-ker_size = 400
-smoothing_window = 128
+ker_size = 64
+smoothing_window = 16
 start = time.time()
 music,sr = load_music("./All_My_Friends.mp3")
 end=time.time()
 print "Loading took %d seconds" % (end-start)
 
 start = time.time()
-feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'tempogram')
+feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'mfcc')
 end = time.time()
 
 print "feature_vectors took %d seconds" % (end-start)
 
 start = time.time()
 sim_mat = sim_matrix(feature_vectors,sr,hop_length,distance_metric = 'euclidean',display=False)
+print sim_mat.shape
 end=time.time()
 
 print "sim_mat took %d seconds" % (end-start)
@@ -246,7 +275,7 @@ print "smoothing took %d seconds" % (end-start)
 
 #PICK PEAKS
 start = time.time()
-peaks= pick_peaks(novelty_curve_smooth)
+peaks,th= pick_peaks(novelty_curve)
 end = time.time()
 
 print "peak picking took %d seconds" % (end-start)
@@ -264,8 +293,10 @@ skip = feature_vectors.shape[-1] / 10
 plt.figure(1)
 plt.title('STFT')
 plt.plot(novelty_curve,color='g')
-plt.plot(novelty_curve_smooth,color='r')
-plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+# plt.plot(novelty_curve_smooth,color='r')
+plt.plot(th)
+#plt.axhline(y=np.std(novelty_curve_smooth)/2,color='orange')
+#plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
 
 #plt.plot(deriv,color='blue')
 for p in peaks:
@@ -273,7 +304,7 @@ for p in peaks:
 
 plt.figure(2)
 plt.title('STFT')
-plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+#plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
 plt.imshow(sim_mat)
 end = time.time()
 
