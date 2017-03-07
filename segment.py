@@ -9,9 +9,7 @@ import scipy
 import random
 import peakdetect
 #TODO implement different method of obtaining feature vectors
-#initialize globals
-hop_length = 1024
-n_fft = 2048
+
 
 def load_music(path):
     """
@@ -21,18 +19,29 @@ def load_music(path):
     music, sr = librosa.load(path)
     return music,sr
 
-def feature_vectors(music,hop_length,window_size):
+def feature_vectors(music,sample_rate,hop_length,window_size,method = 'stft'):
     """
     Returns: feature vectors for audio sample music from the log spectrogram of the music
     music: 1-D numpy array
+    sample_rate: sample rate
     hop_length: int
     window_size: int
+    method: string, method for computing feature vectors Default to stft. ('stft','mfcc','cqt')
     """
-    _stft = librosa.stft(music, hop_length = hop_length, n_fft = n_fft)
-    log_spectrogram = librosa.logamplitude(np.abs(_stft**2), ref_power=np.max)
-    return log_spectrogram
+    if method == 'stft':
+        #feature_vectors = librosa.feature.chroma_stft(y=music,sr=sample_rate)
+        #feature_vectors = librosa.logamplitude(np.abs(_stft**2), ref_power=np.max)
+        _stft = librosa.stft(music, hop_length = hop_length, n_fft = 2048)
+        feature_vectors = librosa.logamplitude(np.abs(_stft**2), ref_power=np.max)
+    elif method == 'cqt':
+        feature_vectors = librosa.feature.chroma_cqt(y=music,sr=sample_rate)
 
-def sim_matrix(feature_vectors, sample_rate, hop_length, distance_metric = 'cosine',display=True):
+    elif method == 'mfcc':
+        feature_vectors = librosa.feature.mfcc(y=music, sr=sample_rate)
+
+    return feature_vectors
+
+def sim_matrix(feature_vectors, sample_rate, hop_length, distance_metric = 'seuclidean',display=True):
     """
         Input:
             feature_vectors - a numpy ndarray MxN, where M is the number of features in each vector and
@@ -73,7 +82,7 @@ def gaussian_checkerboard_kernel(M):
     G[:M / 2, M / 2:] = -G[:M / 2, M / 2:]
     return G
 
-def novelty_curve(sim_mat,ker_size):
+def compute_novelty_curve(sim_mat,ker_size):
     """
     Returns: 1-D numpy array of the novelty curve of similarity matrix sim_mat and kernel size ker_size
     sim_mat: 2-D numpy array of similarity matrix
@@ -98,9 +107,9 @@ def novelty_curve(sim_mat,ker_size):
     novelty_curve = novelty_curve/novelty_curve.max()
     return novelty_curve
 
-def pick_peaks(nc, L=128):
+def pick_peaks(nc,):
     """Obtain peaks from a novelty curve using an adaptive threshold."""
-    std = np.std(nc)
+    std = np.std(nc)/2
     peaks = []
     for i in xrange(1, nc.shape[0] - 1):
         # is it a peak?
@@ -167,29 +176,87 @@ def smooth(x,window_len=11,window='hanning'):
     y=np.convolve(w/w.sum(),s,mode='valid')
     return y
 
-hop_length = 1024
+def segment_cluster(sim_mat,bounds):
+    """
+    Returns:
+    sim_mat: 2-D numpy array of similarity matrix
+    bounds: indices of the boundaries indicating segment boundaries
+    """
+    segments = []
+    boundaries = np.append(boundaries,0,1)
+    if boundaries[0] == 0:
+        print "GOOD"
+    for i in range(1,boundaries.size):
+        segments[i] = sim_mat[boundaries[i-1]:boundaries[i],boundaries[i-1]:boundaries[i]]
+        _,eigen,_ = numpy.linalg.svd(segments[i],full_matrices=0,compute_uv=0)
+
+
+
+##LOAD MUSIC, GET FEATURES, SIM MATRIX
+hop_length = 512
 window_size = 2048
-music,sr = load_music("./call_me_maybe.mp3")
-feature_vectors = feature_vectors(music,hop_length,window_size)
+ker_size = 440
+smoothing_window = 128
+music,sr = load_music("./All_My_Friends.mp3")
+feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'stft')
 sim_mat = sim_matrix(feature_vectors,sr,hop_length,display=False)
-novelty_curve = novelty_curve(sim_mat,256)
-novelty_curve = novelty_curve[100:4050] #the end is wonky
-novelty_curve_smooth = smooth(novelty_curve,window_len = 64)
-deriv = np.zeros(novelty_curve_smooth.size)
-for i in range(1,novelty_curve_smooth.size - 1):
-    deriv[i-1] = (novelty_curve_smooth[i] - novelty_curve_smooth[i-1])
-deriv = 10*deriv
 
+#GET NOVELTY CURVE OF SIMILARITY MATRIX
+novelty_curve = compute_novelty_curve(sim_mat,ker_size)
+#novelty_curve = novelty_curve[100:8000] #the end is wonky
+novelty_curve_smooth = smooth(novelty_curve,window_len = smoothing_window)
+
+#RECURRENCE MATRIX
+recurr = librosa.segment.recurrence_matrix(feature_vectors,mode='affinity')
+novelty_curve_recurr = compute_novelty_curve(recurr,ker_size/2)
+#novelty_curve_recurr = novelty_curve_recurr[100:8000] #the end is wonky
+novelty_curve_recurr_smooth = smooth(novelty_curve_recurr,window_len = smoothing_window)
+
+
+#CALCULATE DERIVATIVE
+# deriv = np.zeros(novelty_curve_smooth.size)
+# for i in range(1,novelty_curve_smooth.size - 1):
+#     deriv[i-1] = (novelty_curve_smooth[i] - novelty_curve_smooth[i-1])
+# magnify = 10
+# deriv = magnify*deriv
+
+#PICK PEAKS
 peaks= pick_peaks(novelty_curve_smooth)
+# peaks_recurr = pick_peaks(novelty_curve_recurr_smooth)
 
-deriv_pts = [deriv[i] for i in peaks]
-print deriv_pts
+#PRINT DERIVATIVE VALUES
+# deriv_pts = [deriv[i] for i in peaks]
+# print deriv_pts
+
+
+
+#PLOTTING
+skip = feature_vectors.shape[-1] / 10
 plt.figure(1)
-plt.plot(novelty_curve_smooth,color='g')
-plt.plot(deriv,color='blue')
+plt.title('STFT')
+plt.plot(novelty_curve,color='g')
+plt.plot(novelty_curve_smooth,color='r')
+plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+
+#plt.plot(deriv,color='blue')
 for p in peaks:
-    plt.axvline(x=p,color='r')
+   plt.axvline(x=p,color='m')
 
 plt.figure(2)
+plt.title('STFT')
+plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
 plt.imshow(sim_mat)
+
+plt.figure(3)
+plt.title('RECURR')
+plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+plt.imshow(recurr)
+
+plt.figure(4)
+plt.title('RECURR')
+plt.plot(novelty_curve_recurr,color='g')
+plt.plot(novelty_curve_recurr_smooth,color='r')
+plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+# for p in peaks_recurr:
+#     plt.axvline(x=p,color='r')
 plt.show()
