@@ -176,7 +176,7 @@ def smooth(x,window_len=11,window='hanning'):
     see also:
 
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
-    scipy.signal.lfilter
+    scipy.signal.filter
 
     TODO: the window parameter could be the window itself if an array instead of a string
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
@@ -227,14 +227,14 @@ def segment_cluster(sim_mat,bounds):
 hop_length = 512
 window_size = 2048
 ker_size = 64
-smoothing_window = 16
+smoothing_window = 4
 start = time.time()
-music,sr = load_music("./All_My_Friends.mp3")
+music,sr = load_music("./Empire.mp3")
 end=time.time()
 print "Loading took %d seconds" % (end-start)
 
 start = time.time()
-feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'mfcc')
+feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'stft')
 end = time.time()
 
 print "feature_vectors took %d seconds" % (end-start)
@@ -286,17 +286,22 @@ print "peak picking took %d seconds" % (end-start)
 # print deriv_pts
 
 
+tempo,beats = librosa.beat.beat_track(y=music,sr=sr,hop_length=hop_length)
+
+beat_times = np.zeros(beats.size)
+for i in range(beats.size):
+    beat_times[i] = (beats[i]*hop_length)/float(sr)
 
 #PLOTTING
 start = time.time()
-skip = feature_vectors.shape[-1] / 10
+skip = beats.shape[-1] / 10
 plt.figure(1)
 plt.title('STFT')
 plt.plot(novelty_curve,color='g')
-# plt.plot(novelty_curve_smooth,color='r')
+#plt.plot(novelty_curve_smooth,color='r')
 plt.plot(th)
 #plt.axhline(y=np.std(novelty_curve_smooth)/2,color='orange')
-#plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+#plt.xticks(np.arange(0, beats.shape[-1]), ['%.2f' % (i * hop_length / float(sr)) for i in range(beats.shape[-1])][::skip])
 
 #plt.plot(deriv,color='blue')
 for p in peaks:
