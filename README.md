@@ -1,9 +1,14 @@
 # previewit
 
 #TODO
-convert to time for graphing \n
-run tests for the peaks for more songs \n
-create the uniqueness classifier \n
-test the uniqueness \n
-implement the connection between back and front end \n
-looking into median filtering the similarity matrix \n 
+convert to time for graphing
+
+run tests for the peaks for more songs
+
+create the uniqueness classifier
+
+test the uniqueness
+
+implement the connection between back and front end
+
+looking into median filtering the similarity matrix
