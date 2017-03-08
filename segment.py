@@ -221,6 +221,23 @@ def segment_cluster(sim_mat,bounds):
         segments[i] = sim_mat[boundaries[i-1]:boundaries[i],boundaries[i-1]:boundaries[i]]
         _,eigen,_ = numpy.linalg.svd(segments[i],full_matrices=0,compute_uv=0)
 
+def seconds_to_timestamp(seconds):
+    minutes = math.floor(seconds / 60)
+    return '%d:%02d' % (minutes, round(seconds - 60 * minutes))
+
+def report_accuracy(identified_times, true_times_file):
+    true_times = []
+    with open(true_times_file, 'r') as f:
+        for line in f:
+            true_time = seconds_to_timestamp(float(line.split()[0]))
+            true_times.append(true_time)
+
+    print 'Identified times:'
+    print identified_times
+    print '\nTrue times:'
+    print true_times
+
+
 
 
 ##LOAD MUSIC, GET FEATURES, SIM MATRIX
@@ -229,24 +246,24 @@ window_size = 2048
 ker_size = 64
 smoothing_window = 4
 start = time.time()
-music,sr = load_music("./Empire.mp3")
+music,sr = load_music("Beatles/LSD.m4a")
 end=time.time()
+
 print "Loading took %d seconds" % (end-start)
 
 start = time.time()
-feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'stft')
+feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'stft',beat_sync = True)
 end = time.time()
 
 print "feature_vectors took %d seconds" % (end-start)
 
 start = time.time()
 sim_mat = sim_matrix(feature_vectors,sr,hop_length,distance_metric = 'euclidean',display=False)
-print sim_mat.shape
 end=time.time()
 
 print "sim_mat took %d seconds" % (end-start)
-#GET NOVELTY CURVE OF SIMILARITY MATRIX
 
+#GET NOVELTY CURVE OF SIMILARITY MATRIX
 start = time.time()
 novelty_curve = compute_novelty_curve(sim_mat,ker_size)
 end=time.time()
@@ -275,7 +292,9 @@ print "smoothing took %d seconds" % (end-start)
 
 #PICK PEAKS
 start = time.time()
-peaks,th= pick_peaks(novelty_curve)
+# the smoothed novelty curve is a different length than the regular novelty curve?
+# causes index errors if a peak is picked at the end
+peaks,th= pick_peaks(novelty_curve) 
 end = time.time()
 
 print "peak picking took %d seconds" % (end-start)
@@ -293,27 +312,39 @@ for i in range(beats.size):
     beat_times[i] = (beats[i]*hop_length)/float(sr)
 
 #PLOTTING
-start = time.time()
-skip = beats.shape[-1] / 10
-plt.figure(1)
-plt.title('STFT')
-plt.plot(novelty_curve,color='g')
-#plt.plot(novelty_curve_smooth,color='r')
-plt.plot(th)
+fig1 = plt.figure(1)
+ax1 = fig1.add_subplot(111)
+ax1.plot(novelty_curve,color='g')
+#ax1.plot(novelty_curve_smooth,color='r')
+ax1.plot(th)
 #plt.axhline(y=np.std(novelty_curve_smooth)/2,color='orange')
-#plt.xticks(np.arange(0, beats.shape[-1]), ['%.2f' % (i * hop_length / float(sr)) for i in range(beats.shape[-1])][::skip])
 
 #plt.plot(deriv,color='blue')
 for p in peaks:
-   plt.axvline(x=p,color='m')
+   ax1.axvline(x=p,color='m')
 
-plt.figure(2)
+regularTicks = 32 * np.arange(0, beat_times.size / 32)
+ax1.set_xticks(regularTicks)
+ax1.set_xticklabels([seconds_to_timestamp(beat_times[i]) for i in regularTicks])
+
+labelAx = ax1.twiny()
+labelAx.set_xlim(ax1.get_xlim())
+labelAx.set_xticks(peaks)
+labelAx.set_xticklabels([seconds_to_timestamp(beat_times[p]) for p in peaks])
+
+fig2 = plt.figure(2)
+ax2 = fig2.add_subplot(111)
 plt.title('STFT')
 #plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
 plt.imshow(sim_mat)
+ax2.set_xticks(regularTicks)
+ax2.set_xticklabels([seconds_to_timestamp(beat_times[i]) for i in regularTicks])
 end = time.time()
 
 print "plotting took %d seconds" % (end-start)
+
+#report_accuracy([seconds_to_timestamp(beat_times[p]) for p in peaks], 'Beatles/LSD.txt')
+
 start = time.time()
 # plt.figure(3)
 # plt.title('RECURR')
