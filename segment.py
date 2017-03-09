@@ -237,8 +237,22 @@ def report_accuracy(identified_times, true_times_file):
     print '\nTrue times:'
     print true_times
 
+def filter_peaks(peaks, nc, filter_radius = 16):
+    out_peaks = []
+    i = 0
+    while i < len(peaks) - 1:
+        local_peak_vals = []
+        local_peak_vals.append(nc[peaks[i]])
+        j = i + 1
+        while j < len(peaks) and peaks[j] - peaks[i] < filter_radius:
+            local_peak_vals.append(nc[peaks[j]])
+            print i, j
+            j += 1
 
-
+        argmax = local_peak_vals.index(max(local_peak_vals))
+        out_peaks.append(peaks[i + argmax])
+        i = j
+    return out_peaks
 
 ##LOAD MUSIC, GET FEATURES, SIM MATRIX
 hop_length = 512
@@ -246,7 +260,8 @@ window_size = 2048
 ker_size = 64
 smoothing_window = 4
 start = time.time()
-music,sr = load_music("Beatles/LSD.m4a")
+music,sr = load_music("Beatles/Oh! Darling.m4a")
+true_times_file = 'Beatles/Oh! Darling.txt'
 end=time.time()
 
 print "Loading took %d seconds" % (end-start)
@@ -297,6 +312,8 @@ start = time.time()
 peaks,th= pick_peaks(novelty_curve) 
 end = time.time()
 
+peaks = filter_peaks(peaks, novelty_curve, filter_radius=16)
+
 print "peak picking took %d seconds" % (end-start)
 # peaks_recurr = pick_peaks(novelty_curve_recurr_smooth)
 
@@ -339,11 +356,13 @@ plt.title('STFT')
 plt.imshow(sim_mat)
 ax2.set_xticks(regularTicks)
 ax2.set_xticklabels([seconds_to_timestamp(beat_times[i]) for i in regularTicks])
+ax2.set_yticks(regularTicks)
+ax2.set_yticklabels([seconds_to_timestamp(beat_times[i]) for i in regularTicks])
 end = time.time()
 
 print "plotting took %d seconds" % (end-start)
 
-#report_accuracy([seconds_to_timestamp(beat_times[p]) for p in peaks], 'Beatles/LSD.txt')
+report_accuracy([seconds_to_timestamp(beat_times[p]) for p in peaks], true_times_file)
 
 start = time.time()
 # plt.figure(3)
