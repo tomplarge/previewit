@@ -1,7 +1,8 @@
 # previewit
 
 #TODO
-convert to time for graphing
+
+deal with short intros - can't be detected because there's already a peak from the zero padding
 
 run tests for the peaks for more songs
 
