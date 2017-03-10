@@ -137,15 +137,22 @@ def beat_sync_features(music,sample_rate,hop_length,feature_vectors,aggregator =
             and B is the number of beats. Each column of this matrix represents a beat synchronous feature
             vector.
     """
-    tempo,beats = librosa.beat.beat_track(y=music, sr=sr, hop_length=hop_length)
-    bsf = np.zeros((feature_vectors.shape[0],beats.size))
-    for b in range(beats.size):
+    tempo,beats = librosa.beat.beat_track(y=music, sr=sample_rate, hop_length=hop_length)
+    bsf = np.zeros((feature_vectors.shape[0],beats.size+1))
+    # +1 because there can be music before first beat and after last beat
+    for b in range(beats.size+1):
         if b ==0:
             temp = feature_vectors[:,0:beats[0]]
-        elif b==beats.size-1:
-            temp = feature_vectors[:,beats[b]:]
+        elif b==beats.size:
+            temp = feature_vectors[:,beats[b-1]:]
         else:
             temp = feature_vectors[:,beats[b-1]:beats[b]]
+
+        # temp can be [] if beat tracker identifies beat at exact start or end of song
+        # which results in nan when aggregator is called on it
+        if temp.size == 0:
+            temp = np.zeros((feature_vectors.shape[0],1))
+
         for i in range(temp.shape[0]):
             bsf[i,b] = aggregator(temp[i,:])
     return bsf
@@ -240,15 +247,13 @@ def report_accuracy(identified_times, true_times_file):
 def filter_peaks(peaks, nc, filter_radius = 16):
     out_peaks = []
     i = 0
-    while i < len(peaks) - 1:
+    while i < len(peaks):
         local_peak_vals = []
         local_peak_vals.append(nc[peaks[i]])
         j = i + 1
         while j < len(peaks) and peaks[j] - peaks[i] < filter_radius:
             local_peak_vals.append(nc[peaks[j]])
-            print i, j
             j += 1
-
         argmax = local_peak_vals.index(max(local_peak_vals))
         out_peaks.append(peaks[i + argmax])
         i = j
@@ -260,8 +265,8 @@ window_size = 2048
 ker_size = 64
 smoothing_window = 4
 start = time.time()
-music,sr = load_music("Beatles/Oh! Darling.m4a")
-true_times_file = 'Beatles/Oh! Darling.txt'
+music,sr = load_music('Beatles/Something.m4a')
+true_times_file = 'Beatles/Something.txt'
 end=time.time()
 
 print "Loading took %d seconds" % (end-start)
