@@ -220,13 +220,17 @@ def segment_cluster(sim_mat,bounds):
     sim_mat: 2-D numpy array of similarity matrix
     bounds: indices of the boundaries indicating segment boundaries
     """
-    segments = []
-    boundaries = np.append(boundaries,0,1)
-    if boundaries[0] == 0:
-        print "GOOD"
-    for i in range(1,boundaries.size):
-        segments[i] = sim_mat[boundaries[i-1]:boundaries[i],boundaries[i-1]:boundaries[i]]
-        _,eigen,_ = numpy.linalg.svd(segments[i],full_matrices=0,compute_uv=0)
+    size = len(bounds)
+    bounds = [0] + bounds
+    bounds = np.array(bounds)
+    eigens = np.zeros((bounds.size,4))
+    segments = np.zeros(bounds.size)
+    for i in range(0,size):
+        print bounds[i],(bounds[i+1]-bounds[i])/2
+        #eigen = np.linalg.svd(sim_mat[bounds[i]:int(bounds[i]+(bounds[i+1]-bounds[i])/2),bounds[i]:int(bounds[i]+(bounds[i+1]-bounds[i])/2)],full_matrices=0,compute_uv=False)
+        eigen = np.linalg.svd(sim_mat[bounds[i]:bounds[i]+16,bounds[i]:bounds[i]+16],full_matrices=0,compute_uv=False)
+        eigens[i] = eigen[0:4]
+    print eigens
 
 def seconds_to_timestamp(seconds):
     minutes = math.floor(seconds / 60)
@@ -265,14 +269,14 @@ window_size = 2048
 ker_size = 64
 smoothing_window = 4
 start = time.time()
-music,sr = load_music('Beatles/Yesterday.m4a')
-true_times_file = 'Beatles/Yesterday.txt'
+music,sr = load_music('All_My_Friends.mp3')
+true_times_file = 'Beatles/LSD.txt'
 end=time.time()
 
 print "Loading took %d seconds" % (end-start)
 
 start = time.time()
-feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'stft',beat_sync = True)
+feature_vectors = feature_vectors(music,sr,hop_length,window_size,method = 'mfcc',beat_sync = True)
 end = time.time()
 
 print "feature_vectors took %d seconds" % (end-start)
@@ -293,6 +297,7 @@ print "novelty took %d seconds" % (end-start)
 
 start=time.time()
 novelty_curve_smooth = smooth(novelty_curve,window_len = smoothing_window)
+novelty_curve_smooth = novelty_curve_smooth[3:]
 end=time.time()
 
 print "smoothing took %d seconds" % (end-start)
@@ -314,12 +319,19 @@ print "smoothing took %d seconds" % (end-start)
 start = time.time()
 # the smoothed novelty curve is a different length than the regular novelty curve?
 # causes index errors if a peak is picked at the end
-peaks,th= pick_peaks(novelty_curve) 
+peaks,th= pick_peaks(novelty_curve_smooth)
+print peaks
 end = time.time()
 
-peaks = filter_peaks(peaks, novelty_curve, filter_radius=16)
+peaks = filter_peaks(peaks, novelty_curve_smooth, filter_radius=16)
 
 print "peak picking took %d seconds" % (end-start)
+
+start = time.time()
+print peaks
+eigens = segment_cluster(sim_mat,peaks)
+end = time.time()
+print "SVD took %d seconds" % (end-start)
 # peaks_recurr = pick_peaks(novelty_curve_recurr_smooth)
 
 #PRINT DERIVATIVE VALUES
@@ -337,7 +349,7 @@ for i in range(beats.size):
 fig1 = plt.figure(1)
 ax1 = fig1.add_subplot(111)
 ax1.plot(novelty_curve,color='g')
-#ax1.plot(novelty_curve_smooth,color='r')
+ax1.plot(novelty_curve_smooth,color='r')
 ax1.plot(th)
 #plt.axhline(y=np.std(novelty_curve_smooth)/2,color='orange')
 
