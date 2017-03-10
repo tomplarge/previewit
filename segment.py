@@ -265,8 +265,8 @@ window_size = 2048
 ker_size = 64
 smoothing_window = 4
 start = time.time()
-music,sr = load_music('Beatles/Something.m4a')
-true_times_file = 'Beatles/Something.txt'
+music,sr = load_music('Beatles/Yesterday.m4a')
+true_times_file = 'Beatles/Yesterday.txt'
 end=time.time()
 
 print "Loading took %d seconds" % (end-start)
