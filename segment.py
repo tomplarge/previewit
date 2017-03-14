@@ -235,7 +235,8 @@ def segment_cluster(sim_mat,bounds):
         #U,eigen,V = np.linalg.svd(sim_mat[bounds[i]:bounds[i+1],bounds[i]:bounds[i+1]],full_matrices=1,compute_uv=True)
 
         #test by first eigenvalues
-    dist_mat = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(U.T,U))
+    print U
+    dist_mat = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(V.T,'euclidean'))
     eigen_sim_mat = 1 - dist_mat/dist_mat.max()
     clusters = {}
     first_eigens = eigens[:,0]
@@ -259,7 +260,7 @@ def segment_cluster(sim_mat,bounds):
             clusters[i] = cluster_ctr
     print eigens
     print clusters
-    return clusters
+    return clusters, eigen_sim_mat
 
 def seconds_to_timestamp(seconds):
     minutes = math.floor(seconds / 60)
@@ -358,7 +359,7 @@ print "peak picking took %d seconds" % (end-start)
 
 start = time.time()
 print peaks
-eigens = segment_cluster(sim_mat,peaks)
+eigens,esm = segment_cluster(sim_mat,peaks)
 end = time.time()
 print "SVD took %d seconds" % (end-start)
 # peaks_recurr = pick_peaks(novelty_curve_recurr_smooth)
@@ -405,6 +406,12 @@ ax2.set_xticklabels([seconds_to_timestamp(beat_times[i]) for i in regularTicks])
 ax2.set_yticks(regularTicks)
 ax2.set_yticklabels([seconds_to_timestamp(beat_times[i]) for i in regularTicks])
 end = time.time()
+
+fig3 = plt.figure(3)
+ax3 = fig3.add_subplot(111)
+plt.title('ESM')
+#plt.xticks(np.arange(0, feature_vectors.shape[-1], skip), ['%.2f' % (i * hop_length / float(sr)) for i in range(feature_vectors.shape[-1])][::skip])
+plt.imshow(esm)
 
 print "plotting took %d seconds" % (end-start)
 
