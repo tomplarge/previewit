@@ -216,7 +216,7 @@ def smooth(x,window_len=11,window='hanning'):
 
 def segment_cluster(sim_mat,bounds):
     """
-    Returns:
+    Returns: dictionary for each segment and its associated cluster as a number
     sim_mat: 2-D numpy array of similarity matrix
     bounds: indices of the boundaries indicating segment boundaries
     """
@@ -227,10 +227,39 @@ def segment_cluster(sim_mat,bounds):
     segments = np.zeros(bounds.size)
     for i in range(0,size):
         print bounds[i],(bounds[i+1]-bounds[i])/2
-        #eigen = np.linalg.svd(sim_mat[bounds[i]:int(bounds[i]+(bounds[i+1]-bounds[i])/2),bounds[i]:int(bounds[i]+(bounds[i+1]-bounds[i])/2)],full_matrices=0,compute_uv=False)
-        eigen = np.linalg.svd(sim_mat[bounds[i]:bounds[i]+16,bounds[i]:bounds[i]+16],full_matrices=0,compute_uv=False)
+        U,eigen,V = np.linalg.svd(sim_mat[bounds[i]:int(bounds[i]+(bounds[i+1]-bounds[i])/2),bounds[i]:int(bounds[i]+(bounds[i+1]-bounds[i])/2)],full_matrices=1,compute_uv=True)
+
+        #eigen = np.linalg.svd(sim_mat[bounds[i]:bounds[i]+16,bounds[i]:bounds[i]+16],full_matrices=0,compute_uv=False)
         eigens[i] = eigen[0:4]
+        #going by the paper (below)
+        #U,eigen,V = np.linalg.svd(sim_mat[bounds[i]:bounds[i+1],bounds[i]:bounds[i+1]],full_matrices=1,compute_uv=True)
+
+        #test by first eigenvalues
+    dist_mat = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(U.T,U))
+    eigen_sim_mat = 1 - dist_mat/dist_mat.max()
+    clusters = {}
+    first_eigens = eigens[:,0]
+    print first_eigens
+    cluster_ctr = 0
+    flag = 0
+    #initialize
+    clusters[0] = cluster_ctr
+    for i in range(1,first_eigens.size):
+        flag = 0
+        print clusters
+        for j in range(i):
+            #compare everything before decimal, acceptance radius of 1
+            if np.floor(np.abs(first_eigens[i] - first_eigens[j])) in [0,1]:
+                clusters[i] = clusters[j]
+                flag = 1
+                break
+
+        if not flag:
+            cluster_ctr += 1
+            clusters[i] = cluster_ctr
     print eigens
+    print clusters
+    return clusters
 
 def seconds_to_timestamp(seconds):
     minutes = math.floor(seconds / 60)
