@@ -458,10 +458,18 @@ def segment(music_path, feature_method = 'stft', distance_metric = 'euclidean', 
         plt.show()
 
     peaks = [beat_times[p] for p in peaks]
-    segment_cluster_better(feature_vectors_beats,peaks,sr)
+    #segment_cluster_better(feature_vectors_beats,peaks,sr)
+
+    # add beginning and end of song to peaks
+    if beat_times[0] not in peaks:
+        peaks.insert(0, beat_times[0])
+    if beat_times[-1] not in peaks:
+        peaks.append(beat_times[-1])
+
     return peaks
 
-segment('LSD.m4a',display=False)
+#peaks = segment('LSD.m4a',display=True)
+
 #segment('All_My_Friends.mp3')
 # ##LOAD MUSIC, GET FEATURES, SIM MATRIX
 # hop_length = 512
